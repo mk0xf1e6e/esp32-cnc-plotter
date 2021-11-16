@@ -1,8 +1,7 @@
 #include <Arduino.h>
-void setup() {
+void setup(){
 // write your initialization code here
 }
-
-void loop() {
+void loop(){
 // write your code here
 }
