@@ -3,6 +3,7 @@
 .pio
 CMakeListsPrivate.txt
 cmake-build-*/
+py_cnc/venv
 
 # Prerequisites
 *.d

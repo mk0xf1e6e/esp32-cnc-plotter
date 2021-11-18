@@ -18,7 +18,7 @@ float getAmplitude(float x,float y,float z){return sqrtf((x*x)+(y*y)+(z*z));}
  * So HIGH:false is disabled, LOW:true is enabled.
  * */
 void setEnableSteppers(bool enable){digitalWrite(EN,enable?LOW:HIGH);}
-// current step resolution
+// current step resolution 1 for full step 2 for half step and ect...
 uint8_t currentStepMode=1;
 /*
  * modes:
@@ -29,36 +29,32 @@ uint8_t currentStepMode=1;
  *      4 : sixteenth step
  * */
 void setSteppersMode(uint8_t mode){
+  currentStepMode=mode;
   switch(mode){
-    case 0:
+    case 1:
       digitalWrite(XYM1,LOW);
       digitalWrite(XYM2,LOW);
       digitalWrite(XYM3,LOW);
-      currentStepMode=1;
-      break;
-    case 1:
-      digitalWrite(XYM1,HIGH);
-      digitalWrite(XYM2,LOW);
-      digitalWrite(XYM3,LOW);
-      currentStepMode=2;
       break;
     case 2:
+      digitalWrite(XYM1,HIGH);
+      digitalWrite(XYM2,LOW);
+      digitalWrite(XYM3,LOW);
+      break;
+    case 4:
       digitalWrite(XYM1,LOW);
       digitalWrite(XYM2,HIGH);
       digitalWrite(XYM3,LOW);
-      currentStepMode=4;
       break;
-    case 3:
+    case 8:
       digitalWrite(XYM1,HIGH);
       digitalWrite(XYM2,HIGH);
       digitalWrite(XYM3,LOW);
-      currentStepMode=8;
       break;
-    case 4:
+    case 16:
       digitalWrite(XYM1,HIGH);
       digitalWrite(XYM2,HIGH);
       digitalWrite(XYM3,HIGH);
-      currentStepMode=16;
       break;
   }
 }
@@ -85,15 +81,15 @@ int32_t xcpStp=0,ycpStp=0,zcpStp=0;
  * Linear move via stepper motors,with certain duration(in microseconds).
  * */
 void moveSteppers(int32_t x,int32_t y,int32_t z,uint64_t motionDelay){
-  xcpStp+=x;
-  ycpStp+=y;
+  xcpStp+=x*(16/currentStepMode);
+  ycpStp+=y*(16/currentStepMode);
   zcpStp+=z;
   setEnableSteppers(true);
   digitalWrite(XDIR,x>0?LOW:HIGH);
   digitalWrite(YDIR,y>0?LOW:HIGH);
   digitalWrite(ZDIR,z>0?LOW:HIGH);
-  x=abs(x)*currentStepMode;
-  y=abs(y)*currentStepMode;
+  x=abs(x);
+  y=abs(y);
   z=abs(z);
   uint64_t x_delay=(x==0)?motionDelay*2:motionDelay/(2*x);
   uint64_t y_delay=(y==0)?motionDelay*2:motionDelay/(2*y);
@@ -130,32 +126,43 @@ void moveSteppers(int32_t x,int32_t y,int32_t z,uint64_t motionDelay){
 // endregion
 // region G-code processing
 float g00FeedRate=1000,lastFeedRate=1000;// mm/min
+/*
+ * step/mm if you multiply this factor by distance it will give you the number of steps.
+ * (this factor is for full step)
+ * */
 uint16_t xStpMm=10,yStpMm=10,zStpMm=10;
+/*
+ * Here we process the G-code and move the stepper motors.
+ * */
 void doGCode(String upCode,String params[4]){
   // G codes
   if(upCode=="g00"||upCode=="g01"){
-    float x=0,y=0,z=0,f=0;
+    float x=0,y=0,z=0,f=0,cpx=0,cpy=0,cpz=0;
+    cpx=(float)xcpStp/(xStpMm*16);
+    cpy=(float)ycpStp/(yStpMm*16);
+    cpz=(float)zcpStp/(zStpMm*16);
     for(int i=0;i<4;++i){
-      if(params[i].indexOf('x')!=-1)x=params[i].substring(1).toFloat()-(float)xcpStp/xStpMm;
-      else if(params[i].indexOf('y')!=-1)y=params[i].substring(1).toFloat()-(float)ycpStp/yStpMm;
-      else if(params[i].indexOf('z')!=-1)z=params[i].substring(1).toFloat()-(float)zcpStp/zStpMm;
+      if(params[i].indexOf('x')!=-1)x=params[i].substring(1).toFloat()-cpx;
+      else if(params[i].indexOf('y')!=-1)y=params[i].substring(1).toFloat()-cpy;
+      else if(params[i].indexOf('z')!=-1)z=params[i].substring(1).toFloat()-cpz;
       else if(params[i].indexOf('f')!=-1)f=params[i].substring(1).toFloat();
     }
     float amplitude=getAmplitude(x,y,z);
     f=(upCode=="g01")?f==0?lastFeedRate:f:g00FeedRate;
     uint64_t motionDelay=(amplitude*60)/(f/1000000);
-    int32_t xStp=roundf(x*xStpMm),yStp=roundf(y*yStpMm),zStp=roundf(z*zStpMm);
+    int32_t xStp=roundf(x*xStpMm*currentStepMode),yStp=roundf(y*yStpMm*currentStepMode),zStp=roundf(z*zStpMm);
     moveSteppers(xStp,yStp,zStp,motionDelay);
     lastFeedRate=(upCode=="g01")?f:lastFeedRate;
   }
     // M codes
   else if(upCode=="m17"){setEnableSteppers(true);}
   else if(upCode=="m18"||upCode=="m84"){setEnableSteppers(false);}
+    // MS code this is for microstepping
   else if(upCode=="ms1"){setSteppersMode(1);}
   else if(upCode=="ms2"){setSteppersMode(2);}
-  else if(upCode=="ms3"){setSteppersMode(3);}
   else if(upCode=="ms4"){setSteppersMode(4);}
-  else if(upCode=="ms5"){setSteppersMode(5);}
+  else if(upCode=="ms8"){setSteppersMode(8);}
+  else if(upCode=="ms16"){setSteppersMode(16);}
   Serial.println("ok");
 }
 // endregion
