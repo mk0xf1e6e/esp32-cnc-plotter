@@ -151,11 +151,11 @@ void doGCode(String upCode,String params[4]){
     // M codes
   else if(upCode=="m17"){setEnableSteppers(true);}
   else if(upCode=="m18"||upCode=="m84"){setEnableSteppers(false);}
-  else if(upCode=="m350"){setSteppersMode(1);}
-  else if(upCode=="m351"){setSteppersMode(2);}
-  else if(upCode=="m352"){setSteppersMode(3);}
-  else if(upCode=="m353"){setSteppersMode(4);}
-  else if(upCode=="m354"){setSteppersMode(5);}
+  else if(upCode=="ms1"){setSteppersMode(1);}
+  else if(upCode=="ms2"){setSteppersMode(2);}
+  else if(upCode=="ms3"){setSteppersMode(3);}
+  else if(upCode=="ms4"){setSteppersMode(4);}
+  else if(upCode=="ms5"){setSteppersMode(5);}
   Serial.println("ok");
 }
 // endregion
