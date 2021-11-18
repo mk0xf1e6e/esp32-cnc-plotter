@@ -1,10 +1,8 @@
+# not needed
 .idea
 .pio
 CMakeListsPrivate.txt
 cmake-build-*/
-
-# girignore file itself
-.gitignore
 
 # Prerequisites
 *.d
