@@ -30,32 +30,30 @@ uint8_t currentStepMode=1;
  * */
 void setSteppersMode(uint8_t mode){
   currentStepMode=mode;
-  switch(mode){
-    case 1:
-      digitalWrite(XYM1,LOW);
-      digitalWrite(XYM2,LOW);
-      digitalWrite(XYM3,LOW);
-      break;
-    case 2:
-      digitalWrite(XYM1,HIGH);
-      digitalWrite(XYM2,LOW);
-      digitalWrite(XYM3,LOW);
-      break;
-    case 4:
-      digitalWrite(XYM1,LOW);
-      digitalWrite(XYM2,HIGH);
-      digitalWrite(XYM3,LOW);
-      break;
-    case 8:
-      digitalWrite(XYM1,HIGH);
-      digitalWrite(XYM2,HIGH);
-      digitalWrite(XYM3,LOW);
-      break;
-    case 16:
-      digitalWrite(XYM1,HIGH);
-      digitalWrite(XYM2,HIGH);
-      digitalWrite(XYM3,HIGH);
-      break;
+  if(mode==1){
+    digitalWrite(XYM1,LOW);
+    digitalWrite(XYM2,LOW);
+    digitalWrite(XYM3,LOW);
+  }
+  else if(mode==2){
+    digitalWrite(XYM1,HIGH);
+    digitalWrite(XYM2,LOW);
+    digitalWrite(XYM3,LOW);
+  }
+  else if(mode==4){
+    digitalWrite(XYM1,LOW);
+    digitalWrite(XYM2,HIGH);
+    digitalWrite(XYM3,LOW);
+  }
+  else if(mode==8){
+    digitalWrite(XYM1,HIGH);
+    digitalWrite(XYM2,HIGH);
+    digitalWrite(XYM3,LOW);
+  }
+  else if(mode==16){
+    digitalWrite(XYM1,HIGH);
+    digitalWrite(XYM2,HIGH);
+    digitalWrite(XYM3,HIGH);
   }
 }
 /*
@@ -72,7 +70,7 @@ void setupSteppers(){
   pinMode(XYM1,OUTPUT);
   pinMode(XYM2,OUTPUT);
   pinMode(XYM3,OUTPUT);
-  setSteppersMode(0);
+  setSteppersMode(1);
   setEnableSteppers(false);
 }
 // current position in steps
@@ -130,7 +128,7 @@ float g00FeedRate=1000,lastFeedRate=1000;// mm/min
  * step/mm if you multiply this factor by distance it will give you the number of steps.
  * (this factor is for full step)
  * */
-uint16_t xStpMm=10,yStpMm=10,zStpMm=10;
+uint8_t xStpMm=7,yStpMm=7,zStpMm=7;
 /*
  * Here we process the G-code and move the stepper motors.
  * */
@@ -138,9 +136,9 @@ void doGCode(String upCode,String params[4]){
   // G codes
   if(upCode=="g00"||upCode=="g01"){
     float x=0,y=0,z=0,f=0,cpx=0,cpy=0,cpz=0;
-    cpx=(float)xcpStp/(xStpMm*16);
-    cpy=(float)ycpStp/(yStpMm*16);
-    cpz=(float)zcpStp/(zStpMm*16);
+    cpx=(float)xcpStp/(float)(xStpMm*16);
+    cpy=(float)ycpStp/(float)(yStpMm*16);
+    cpz=(float)zcpStp/(float)zStpMm;
     for(int i=0;i<4;++i){
       if(params[i].indexOf('x')!=-1)x=params[i].substring(1).toFloat()-cpx;
       else if(params[i].indexOf('y')!=-1)y=params[i].substring(1).toFloat()-cpy;
@@ -163,6 +161,10 @@ void doGCode(String upCode,String params[4]){
   else if(upCode=="ms4"){setSteppersMode(4);}
   else if(upCode=="ms8"){setSteppersMode(8);}
   else if(upCode=="ms16"){setSteppersMode(16);}
+  else{
+    Serial.println(":::Error: Unknown command.");
+    return;
+  }
   Serial.println("ok");
 }
 // endregion
