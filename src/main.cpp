@@ -233,6 +233,8 @@ void loop(){
   while(!Serial.available())delay(1);
   while(1){
     int16_t ci=Serial.read();
+    uint64_t start=micros();
+    while(ci==40||ci==59){if(Serial.read()==10||micros()-start>=100000){break;}}
     if(ci==-1)continue;
     isEndOfLine=ci==10;
     if(ci==10||ci==32)break;
@@ -241,6 +243,12 @@ void loop(){
   upCode.toLowerCase();
   while(!isEndOfLine){
     int16_t ci=Serial.read();
+    uint64_t start=micros();
+    while(ci==40||ci==59){if(Serial.read()==10||micros()-start>=100000){break;}}
+    if(ci==40||ci==59){
+      isEndOfLine=true;
+      break;
+    }
     if(ci==-1)continue;
     isEndOfLine=ci==10;
     if(ci==10||ci==32)break;
@@ -248,6 +256,12 @@ void loop(){
   }
   while(!isEndOfLine){
     int16_t ci=Serial.read();
+    uint64_t start=micros();
+    while(ci==40||ci==59){if(Serial.read()==10||micros()-start>=100000){break;}}
+    if(ci==40||ci==59){
+      isEndOfLine=true;
+      break;
+    }
     if(ci==-1)continue;
     isEndOfLine=ci==10;
     if(ci==10||ci==32)break;
@@ -255,6 +269,12 @@ void loop(){
   }
   while(!isEndOfLine){
     int16_t ci=Serial.read();
+    uint64_t start=micros();
+    while(ci==40||ci==59){if(Serial.read()==10||micros()-start>=100000){break;}}
+    if(ci==40||ci==59){
+      isEndOfLine=true;
+      break;
+    }
     if(ci==-1)continue;
     isEndOfLine=ci==10;
     if(ci==10||ci==32)break;
@@ -262,6 +282,12 @@ void loop(){
   }
   while(!isEndOfLine){
     int16_t ci=Serial.read();
+    uint64_t start=micros();
+    while(ci==40||ci==59){if(Serial.read()==10||micros()-start>=100000){break;}}
+    if(ci==40||ci==59){
+      isEndOfLine=true;
+      break;
+    }
     if(ci==-1)continue;
     isEndOfLine=ci==10;
     if(ci==10||ci==32)break;
