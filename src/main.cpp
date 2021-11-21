@@ -75,13 +75,28 @@ void setupSteppers(){
 }
 // current position in steps
 int32_t xcpStp=0,ycpStp=0,zcpStp=0;
+// lower limit in steps
+int32_t xLowerLimit=0,yLowerLimit=0,zLowerLimit=0;
+// upper limit in steps
+int32_t xUpperLimit=3360,yUpperLimit=3360,zUpperLimit=1120;
 /*
  * Linear move via stepper motors,with certain duration(in microseconds).
  * */
 void moveSteppers(int32_t x,int32_t y,int32_t z,uint64_t motionDelay){
+  bool doReturn=false;
+  int32_t xcp=xcpStp,ycp=ycpStp,zcp=zcpStp;
   xcpStp+=x*(16/currentStepMode);
   ycpStp+=y*(16/currentStepMode);
   zcpStp+=z;
+  if(x!=0&&(xcpStp<xLowerLimit||xcpStp>xUpperLimit)){doReturn=true;}
+  if(y!=0&&(ycpStp<yLowerLimit||ycpStp>yUpperLimit)){doReturn=true;}
+  if(z!=0&&(zcpStp<zLowerLimit||zcpStp>zUpperLimit)){doReturn=true;}
+  if(doReturn){
+    xcpStp=xcp;
+    ycpStp=ycp;
+    zcpStp=zcp;
+    return;
+  }
   setEnableSteppers(true);
   digitalWrite(XDIR,x>0?LOW:HIGH);
   digitalWrite(YDIR,y>0?LOW:HIGH);
@@ -134,22 +149,34 @@ uint8_t xStpMm=7,yStpMm=7,zStpMm=7;
  * */
 void doGCode(String upCode,String params[4]){
   // G codes
-  if(upCode=="g00"||upCode=="g01"){
+  if(upCode=="g00"||upCode=="g01"||upCode=="g28"){
     float x=0,y=0,z=0,f=0,cpx=0,cpy=0,cpz=0;
     cpx=(float)xcpStp/(float)(xStpMm*16);
     cpy=(float)ycpStp/(float)(yStpMm*16);
     cpz=(float)zcpStp/(float)zStpMm;
-    for(int i=0;i<4;++i){
-      if(params[i].indexOf('x')!=-1)x=params[i].substring(1).toFloat()-cpx;
-      else if(params[i].indexOf('y')!=-1)y=params[i].substring(1).toFloat()-cpy;
-      else if(params[i].indexOf('z')!=-1)z=params[i].substring(1).toFloat()-cpz;
-      else if(params[i].indexOf('f')!=-1)f=params[i].substring(1).toFloat();
+    if(upCode=="g28"){
+      x=-cpx;
+      y=-cpy;
+      z=-cpz;
+    }
+    else{
+      for(int i=0;i<4;++i){
+        if(params[i].indexOf('x')!=-1)x=params[i].substring(1).toFloat()-cpx;
+        else if(params[i].indexOf('y')!=-1)y=params[i].substring(1).toFloat()-cpy;
+        else if(params[i].indexOf('z')!=-1)z=params[i].substring(1).toFloat()-cpz;
+        else if(params[i].indexOf('f')!=-1)f=params[i].substring(1).toFloat();
+      }
     }
     float amplitude=getAmplitude(x,y,z);
     f=(upCode=="g01")?f==0?lastFeedRate:f:g00FeedRate;
     uint64_t motionDelay=(amplitude*60)/(f/1000000);
     int32_t xStp=roundf(x*xStpMm*currentStepMode),yStp=roundf(y*yStpMm*currentStepMode),zStp=roundf(z*zStpMm);
+    if(upCode=="g28"){setSteppersMode(1);}
     moveSteppers(xStp,yStp,zStp,motionDelay);
+    if(upCode=="g28"){
+      delay(100);
+      setEnableSteppers(false);
+    }
     lastFeedRate=(upCode=="g01")?f:lastFeedRate;
   }
     // M codes
@@ -168,8 +195,34 @@ void doGCode(String upCode,String params[4]){
   Serial.println("ok");
 }
 // endregion
+// region joystick manager!
+TaskHandle_t jmTask;
+void joystickManagent(void*parameter){
+  pinMode(27,INPUT);
+  pinMode(36,INPUT);
+  pinMode(39,INPUT);
+  for(;;){
+    int8_t x=round(((analogRead(36)-2075)/2000));
+    int8_t y=round(((analogRead(39)-2075)/2000));
+    if(x!=0||y!=0){
+      moveSteppers(x,y,0,8000);
+      setEnableSteppers(false);
+    }
+    else if(!digitalRead(27)){
+      String params[4]={"","","",""};
+      doGCode("g28",params);
+      for(;;){
+        if(digitalRead(27)){break;}
+        delay(1);
+      }
+    }
+    delay(20);
+  }
+}
+// endregion
 // region main functions
 void setup(){
+  xTaskCreatePinnedToCore(joystickManagent,"jm",1000,NULL,1,&jmTask,0);
   setupSteppers();
   Serial.begin(115200);
 }
