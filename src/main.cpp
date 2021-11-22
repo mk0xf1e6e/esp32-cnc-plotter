@@ -155,9 +155,16 @@ void doGCode(String upCode,String params[4]){
     cpy=(float)ycpStp/(float)(yStpMm*16);
     cpz=(float)zcpStp/(float)zStpMm;
     if(upCode=="g28"){
-      x=-cpx;
-      y=-cpy;
-      z=-cpz;
+      for(uint8_t i=0;i<4;i++){
+        if(params[i]=="x")x=-cpx;
+        if(params[i]=="y")y=-cpy;
+        if(params[i]=="z")z=-cpz;
+      }
+      if(x==0&&y==0&&z==0){
+        x=-cpx;
+        y=-cpy;
+        z=-cpz;
+      }
     }
     else{
       for(int i=0;i<4;++i){
