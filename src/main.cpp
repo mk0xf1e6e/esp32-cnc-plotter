@@ -78,7 +78,7 @@ int32_t xcpStp=0,ycpStp=0,zcpStp=0;
 // lower limit in steps
 int32_t xLowerLimit=0,yLowerLimit=0,zLowerLimit=0;
 // upper limit in steps
-int32_t xUpperLimit=3360,yUpperLimit=3360,zUpperLimit=1120;
+int32_t xUpperLimit=3360,yUpperLimit=3360,zUpperLimit=896;
 /*
  * Linear move via stepper motors,with certain duration(in microseconds).
  * */
@@ -145,6 +145,10 @@ float g00FeedRate=1000,lastFeedRate=1000;// mm/min
  * */
 uint8_t xStpMm=7,yStpMm=7,zStpMm=7;
 /*
+ * is it absolute positioning?
+ * */
+bool isAbsolutePosition=true;
+/*
  * Here we process the G-code and move the stepper motors.
  * */
 void doGCode(String upCode,String params[4]){
@@ -168,10 +172,18 @@ void doGCode(String upCode,String params[4]){
     }
     else{
       for(int i=0;i<4;++i){
-        if(params[i].indexOf('x')!=-1)x=params[i].substring(1).toFloat()-cpx;
-        else if(params[i].indexOf('y')!=-1)y=params[i].substring(1).toFloat()-cpy;
-        else if(params[i].indexOf('z')!=-1)z=params[i].substring(1).toFloat()-cpz;
-        else if(params[i].indexOf('f')!=-1)f=params[i].substring(1).toFloat();
+        if(params[i].indexOf('x')!=-1){
+          x=params[i].substring(1).toFloat()-(isAbsolutePosition?cpx:0);
+        }
+        else if(params[i].indexOf('y')!=-1){
+          y=params[i].substring(1).toFloat()-(isAbsolutePosition?cpy:0);
+        }
+        else if(params[i].indexOf('z')!=-1){
+          z=params[i].substring(1).toFloat()-(isAbsolutePosition?cpz:0);
+        }
+        else if(params[i].indexOf('f')!=-1){
+          f=params[i].substring(1).toFloat();
+        }
       }
     }
     float amplitude=getAmplitude(x,y,z);
@@ -186,6 +198,8 @@ void doGCode(String upCode,String params[4]){
     }
     lastFeedRate=(upCode=="g01")?f:lastFeedRate;
   }
+  else if(upCode=="g90"){isAbsolutePosition=true;}
+  else if(upCode=="g91"){isAbsolutePosition=false;}
     // M codes
   else if(upCode=="m17"){setEnableSteppers(true);}
   else if(upCode=="m18"||upCode=="m84"){setEnableSteppers(false);}
@@ -212,6 +226,7 @@ void joystickManagent(void*parameter){
     int8_t x=round(((analogRead(36)-2075)/2000));
     int8_t y=round(((analogRead(39)-2075)/2000));
     if(x!=0||y!=0){
+      setSteppersMode(1);
       moveSteppers(x,y,0,8000);
       setEnableSteppers(false);
     }
