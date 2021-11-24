@@ -1,16 +1,20 @@
 from funcs import (close_port,clear)
+from plot_a_function import (plot_a_function)
 from send_messages import (send_messages)
 from the_controller import (setup_the_controller,wait_for_the_controller,set_enable_the_controller)
+from read_upload import (read_upload)
 current_page='main'
 page_options={
   'main':[
     'send messages',
     'the controller',
     'read and send g-code file',
-    'upload file to sd card'
+    'plot a function'
   ],
   'main > send_messages':send_messages,
   'main > the_controller':wait_for_the_controller,
+  'main > read_upload':read_upload,
+  'main > plot_a_function':plot_a_function
 }
 skip_get_option=False
 def exit_program():
@@ -59,6 +63,10 @@ def process_option(option: int):
     elif option==2:
       set_enable_the_controller(True)
       current_page='main > the_controller'
+    elif option==3:
+      current_page='main > read_upload'
+    elif option==4:
+      current_page='main > plot_a_function'
 def main():
   global skip_get_option
   while True:

@@ -149,6 +149,10 @@ uint8_t xStpMm=7,yStpMm=7,zStpMm=7;
  * */
 bool isAbsolutePosition=true;
 /*
+ * The offset for G92
+ * */
+float xOffset=0,yOffset=0,zOffset=0;
+/*
  * Here we process the G-code and move the stepper motors.
  * */
 void doGCode(String upCode,String params[4]){
@@ -173,13 +177,13 @@ void doGCode(String upCode,String params[4]){
     else{
       for(int i=0;i<4;++i){
         if(params[i].indexOf('x')!=-1){
-          x=params[i].substring(1).toFloat()-(isAbsolutePosition?cpx:0);
+          x=params[i].substring(1).toFloat()-(isAbsolutePosition?(cpx+xOffset):0);
         }
         else if(params[i].indexOf('y')!=-1){
-          y=params[i].substring(1).toFloat()-(isAbsolutePosition?cpy:0);
+          y=params[i].substring(1).toFloat()-(isAbsolutePosition?(cpy+yOffset):0);
         }
         else if(params[i].indexOf('z')!=-1){
-          z=params[i].substring(1).toFloat()-(isAbsolutePosition?cpz:0);
+          z=params[i].substring(1).toFloat()-(isAbsolutePosition?(cpz+zOffset):0);
         }
         else if(params[i].indexOf('f')!=-1){
           f=params[i].substring(1).toFloat();
@@ -200,9 +204,49 @@ void doGCode(String upCode,String params[4]){
   }
   else if(upCode=="g90"){isAbsolutePosition=true;}
   else if(upCode=="g91"){isAbsolutePosition=false;}
+  else if(upCode=="g92"){
+    float cpx=0,cpy=0,cpz=0;
+    cpx=(float)xcpStp/(float)(xStpMm*16);
+    cpy=(float)ycpStp/(float)(yStpMm*16);
+    cpz=(float)zcpStp/(float)zStpMm;
+    for(int i=0;i<3;++i){
+      if(params[i].indexOf('x')!=-1){xOffset=params[i].substring(1).toFloat()-cpx;}
+      else if(params[i].indexOf('y')!=-1){yOffset=params[i].substring(1).toFloat()-cpy;}
+      else if(params[i].indexOf('z')!=-1){zOffset=params[i].substring(1).toFloat()-cpz;}
+    }
+  }
     // M codes
   else if(upCode=="m17"){setEnableSteppers(true);}
   else if(upCode=="m18"||upCode=="m84"){setEnableSteppers(false);}
+  else if(upCode=="m114"){
+    float cpx=0,cpy=0,cpz=0;
+    cpx=(float)xcpStp/(float)(xStpMm*16);
+    cpy=(float)ycpStp/(float)(yStpMm*16);
+    cpz=(float)zcpStp/(float)zStpMm;
+    bool isRealPosition=false;
+    for(uint8_t i=0;i<4;++i){
+      if(params[i].indexOf('r')!=-1){
+        isRealPosition=true;
+        break;
+      }
+    }
+    if(isRealPosition){
+      Serial.print("X:");
+      Serial.print(cpx);
+      Serial.print(" Y:");
+      Serial.print(cpy);
+      Serial.print(" Z:");
+      Serial.println(cpz);
+    }
+    else{
+      Serial.print("X:");
+      Serial.print(cpx+xOffset);
+      Serial.print(" Y:");
+      Serial.print(cpy+yOffset);
+      Serial.print(" Z:");
+      Serial.println(cpz+zOffset);
+    }
+  }
     // MS code this is for microstepping
   else if(upCode=="ms1"){setSteppersMode(1);}
   else if(upCode=="ms2"){setSteppersMode(2);}
@@ -315,7 +359,7 @@ void loop(){
     if(ci==10||ci==32)break;
     else params[3]+=(char)ci;
   }
-  for(uint8_t i=0;i<4;++i)params[i].toLowerCase();
+  for(uint8_t i=0;i<4;++i){params[i].toLowerCase();}
   doGCode(upCode,params);
 }
 // endregion
