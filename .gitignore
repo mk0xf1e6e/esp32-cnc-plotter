@@ -4,6 +4,7 @@
 CMakeListsPrivate.txt
 cmake-build-*/
 software/venv
+CMakeLists.txt
 
 # Prerequisites
 *.d
