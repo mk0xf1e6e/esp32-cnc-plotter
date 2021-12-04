@@ -5,10 +5,12 @@ from serial import (Serial)
 from serial.tools.list_ports_windows import (comports)
 from numpy import arange
 import cv2 as cv
+import time
 app=Flask(__name__,static_folder='static',static_url_path='/')
 cors=CORS(app)
 serial_port: Serial=None
 camera: cv.VideoCapture=cv.VideoCapture(0)
+data_file: str=""
 # region plotter functions
 def list_ports() -> str:
   try:
@@ -46,19 +48,21 @@ def disconnect() -> str:
 def check_connection(func):
   def inner1(*args,**kwargs):
     if serial_port is None or not serial_port.isOpen(): return 'Please connect first.'
-    serial_port.reset_output_buffer()
+    serial_port.reset_input_buffer()
     try:
       return func(*args,**kwargs)
     except Exception as e:
       return str(e)
   return inner1
-def send_message(msg: str) -> str:
-  serial_port.reset_output_buffer()
-  msg=msg if msg[-1]=='\n' else msg+'\n'
+@check_connection
+def send_message(msg: str,read_result: bool = True,append_new_line: bool = True) -> str:
+  if append_new_line: msg=msg if msg[-1]=='\n' else msg+'\n'
   serial_port.write(msg.encode('utf-8'))
-  msg=serial_port.readline()
-  msg=msg[:-2].decode('utf-8')
-  return msg
+  if read_result:
+    msg=serial_port.readline()
+    msg=msg[:-2].decode('utf-8')
+    return msg
+  return "Done"
 @check_connection
 def send_gcode(g: str = 'none') -> str:
   if g=='none': return 'we except something like: send_gcode -g "G00_X15_Y15"'
@@ -144,6 +148,18 @@ def mkdir(_dir: str = '') -> str: return send_message(f"mkdir {_dir}")
 def rm(_dir: str = '') -> str: return send_message(f"rm {_dir}")
 @check_connection
 def touch(_dir: str = '') -> str: return send_message(f"touch {_dir}")
+@check_connection
+def write(_dir: str = '') -> str:
+  send_message(f"write {_dir}",read_result=False)
+  print(data_file)
+  send_message(f"{data_file}")
+  return
+@check_connection
+def read(_dir: str = '') -> str:
+  send_message(f"rf {_dir}",read_result=False)
+  time.sleep(3)
+  data=''.join(list(map(lambda x:x.decode('utf-8'),serial_port.readlines())))
+  return data
 # endregion
 # region imaging
 def get_img(q: int = 100,rf: float = 1) -> str:
@@ -162,7 +178,9 @@ def index(): return render_template('index.html')
 def p404(): return render_template('404.html')
 @app.route('/do_command',methods=["POST"])
 def do_command():
+  global data_file
   command=str(request.get_json()['command']).lower()
+  data_file=request.get_json()['file']
   params=command.split(' ')
   command=params[0]
   params.pop(0)

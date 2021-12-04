@@ -299,7 +299,7 @@ void readFile(String dir){
 /*
  * write to a file
  * */
-void writeFile(String dir,const char*mode,String data){
+void writeFile(String dir,const char*mode,String data,bool printResult=true){
   if(dir.isEmpty()){
     Serial.println(":::Error: you must specify a directory.");
     return;
@@ -314,7 +314,7 @@ void writeFile(String dir,const char*mode,String data){
     if(!file){Serial.println(":::Error: can't open the file.");}
     else{
       for(uint16_t i=0;i<data.length();++i){file.write((uint8_t)data.charAt(i));}
-      Serial.println("Done");
+      if(printResult)Serial.println("Done");
     }
     file.close();
   }
@@ -323,6 +323,10 @@ void writeFile(String dir,const char*mode,String data){
  * touch: creates a empty file.
  * */
 void touch(String dir){writeFile(dir,FILE_WRITE,"");}
+/*
+ * read a file draw from the SD card.
+ * */
+void readAndDraw(String dir);
 // endregion
 // region G-code processing
 float g00FeedRate=1000,lastFeedRate=1000;// mm/min
@@ -465,8 +469,29 @@ void doGCode(String upCode,String params[4]){
     rm(params[0]);
     return;
   }
+  else if(upCode=="rf"){
+    readFile(params[0]);
+    return;
+  }
   else if(upCode=="touch"){
     touch(params[0]);
+    return;
+  }
+  else if(upCode=="write"){
+    String data="";
+    unsigned long lastRead=millis();
+    while(millis()-lastRead<=1000){
+      int rc=Serial.read();
+      if(rc!=-1){
+        data+=(char)rc;
+        lastRead=millis();
+      }
+    }
+    writeFile(params[0],FILE_WRITE,data);
+    return;
+  }
+  else if(upCode=="draw"){
+    readAndDraw(params[0]);
     return;
   }
     // if command doses not exist.
@@ -475,6 +500,100 @@ void doGCode(String upCode,String params[4]){
     return;
   }
   Serial.println("ok");
+}
+// endregion
+// region read & draw
+void readAndDraw(String dir){
+  if(dir.isEmpty()){
+    Serial.println(":::Error: you must specify a directory.");
+    return;
+  }
+  if(dir[dir.length()-1]=='/'){dir=dir.substring(0,dir.length()-1);}
+  String _cd=current_directory[current_directory.length()-1]=='/'?"":"/";
+  _cd=current_directory+_cd;
+  dir="/"+_cd+dir;
+  if(!SD.exists(dir)){Serial.println(":::Error: the file dose not exist.");}
+  else{
+    File file=SD.open(dir.c_str(),FILE_READ);
+    if(!file){Serial.println(":::Error: can't open the file.");}
+    else{
+      while(file.available()){
+        String upCode="";
+        String params[4]={"","","",""};
+        bool isEndOfLine;
+        while(1){
+          int16_t ci=file.read();
+          uint64_t start=micros();
+          while(ci==40||ci==59){if(file.read()==10||micros()-start>=100000){break;}}
+          if(ci==-1)continue;
+          isEndOfLine=ci==10;
+          if(ci==10||ci==32)break;
+          else upCode+=(char)ci;
+        }
+        upCode.toLowerCase();
+        while(!isEndOfLine){
+          int16_t ci=file.read();
+          uint64_t start=micros();
+          while(ci==40||ci==59){if(file.read()==10||micros()-start>=100000){break;}}
+          if(ci==40||ci==59){
+            isEndOfLine=true;
+            break;
+          }
+          if(ci==-1)continue;
+          isEndOfLine=ci==10;
+          if(ci==10||ci==32)break;
+          else params[0]+=(char)ci;
+        }
+        while(!isEndOfLine){
+          int16_t ci=file.read();
+          uint64_t start=micros();
+          while(ci==40||ci==59){if(file.read()==10||micros()-start>=100000){break;}}
+          if(ci==40||ci==59){
+            isEndOfLine=true;
+            break;
+          }
+          if(ci==-1)continue;
+          isEndOfLine=ci==10;
+          if(ci==10||ci==32)break;
+          else params[1]+=(char)ci;
+        }
+        while(!isEndOfLine){
+          int16_t ci=file.read();
+          uint64_t start=micros();
+          while(ci==40||ci==59){if(file.read()==10||micros()-start>=100000){break;}}
+          if(ci==40||ci==59){
+            isEndOfLine=true;
+            break;
+          }
+          if(ci==-1)continue;
+          isEndOfLine=ci==10;
+          if(ci==10||ci==32)break;
+          else params[2]+=(char)ci;
+        }
+        while(!isEndOfLine){
+          int16_t ci=file.read();
+          uint64_t start=micros();
+          while(ci==40||ci==59){if(file.read()==10||micros()-start>=100000){break;}}
+          if(ci==40||ci==59){
+            isEndOfLine=true;
+            break;
+          }
+          if(ci==-1)continue;
+          isEndOfLine=ci==10;
+          if(ci==10||ci==32)break;
+          else params[3]+=(char)ci;
+        }
+        for(uint8_t i=0;i<4;++i){params[i].toLowerCase();}
+        if(upCode.charAt(upCode.length()-1)==(char)13)
+          upCode=upCode.substring(0,upCode.length()-1);
+        Serial.print(upCode);
+        for(uint8_t i=0;i<4;i++)Serial.print(" "+params[i]);
+        doGCode(upCode,params);
+      }
+      Serial.println("Done");
+    }
+    file.close();
+  }
 }
 // endregion
 // region joystick manager!
@@ -504,9 +623,9 @@ void joystickManagent(void*parameter){
 // endregion
 // region main functions
 void setup(){
+  setupSteppers();
   xTaskCreatePinnedToCore(joystickManagent,"jm",1000,NULL,1,&jmTask,0);
   SD_setup();
-  setupSteppers();
   Serial.begin(115200);
 }
 void loop(){
