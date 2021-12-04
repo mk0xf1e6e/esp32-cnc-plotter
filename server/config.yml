@@ -1,0 +1,6 @@
+tunnel: a8df2238-9a7d-4a25-882d-af24431fe15f
+credentials-file: C:\Users\Milad Karami\.cloudflared\a8df2238-9a7d-4a25-882d-af24431fe15f.json
+ingress:
+  - service:
+    originRequest: http://127.0.0.1:5000/
+      originServerName: milad-karami.ir

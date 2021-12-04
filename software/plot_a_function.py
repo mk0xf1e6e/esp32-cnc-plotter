@@ -7,7 +7,6 @@ def transform(point,scale,offset):
   return point
 def plot(points,scale,offset):
   send_message('G90')
-  send_message('MS8')
   send_message('G01 F300')
   send_message('G00 Z5')
   for i,p in enumerate(points):
@@ -15,7 +14,6 @@ def plot(points,scale,offset):
     send_message(f'G01 X{p[1]} Y{p[0]}')
     if i==0: send_message('G00 Z0')
   send_message('G00 Z5')
-  send_message('MS1')
   send_message('G00 X0 Y0')
   send_message('G28')
 def plot_a_function():
@@ -29,14 +27,16 @@ def plot_a_function():
       lx,ux=map(float,user_input.split('_' if '_' in user_input else ','))
       scale=(ux-lx)/30
       step=scale*0.1
-      x_arr=list(map(lambda i:round(i,2),arange(lx,ux+step,step)))
+      x_arr=list(map(lambda i:round(i,1),arange(lx,ux+step,step)))
       _locals=locals()
-      exec(f"y_arr=list(map(lambda x:round({func},2),x_arr))",globals(),_locals)
+      exec(f"y_arr=list(map(lambda x:round({func},1),x_arr))",globals(),_locals)
       y_arr=_locals['y_arr']
       ly=min(y_arr)
       uy=ly+(ux-lx)
       offset=[-lx/scale,-ly/scale]
-      plot(list(zip(x_arr,y_arr)),scale,offset)
+      the_function=list(zip(x_arr,y_arr))
+      the_function=list(filter(lambda x:ux>=x[0]>=lx and uy>=x[1]>=ly,the_function))
+      plot(the_function,scale,offset)
     except ValueError:
       continue
     user_input=input('(Do Want To Draw Coordinates?(y/or any thing else) or exit)>>> ')
